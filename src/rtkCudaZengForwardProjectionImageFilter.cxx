@@ -16,6 +16,7 @@
  *
  *=========================================================================*/
 #include "rtkCudaZengForwardProjectionImageFilter.h"
+#include <itkMath.h>
 
 #ifdef RTK_USE_CUDA
 #  include "rtkCudaZengProjectionImageFilter.hcu"
@@ -166,6 +167,15 @@ CudaZengForwardProjectionImageFilter::GPUGenerateData()
     }
   }
 
+  // PSF along the second axis of the projections: the one of the first axis if not set
+  // (itk::NumericTraits<double>::max())
+  const double sigmaZeroY = itk::Math::ExactlyEquals(this->GetSigmaZeroY(), itk::NumericTraits<double>::max())
+                              ? this->GetSigmaZero()
+                              : this->GetSigmaZeroY();
+  const double alphaY = itk::Math::ExactlyEquals(this->GetAlphaY(), itk::NumericTraits<double>::max())
+                          ? this->GetAlpha()
+                          : this->GetAlphaY();
+
   CUDA_zeng_forward_project(projectionSize,
                             volumeSize,
                             rotatedSize,
@@ -180,6 +190,8 @@ CudaZengForwardProjectionImageFilter::GPUGenerateData()
                             attenuationOffset,
                             static_cast<float>(this->GetSigmaZero()),
                             static_cast<float>(this->GetAlpha()),
+                            static_cast<float>(sigmaZeroY),
+                            static_cast<float>(alphaY),
                             m_BatchSize,
                             &m_CudaWorkspace);
 }
